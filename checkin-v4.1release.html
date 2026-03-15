@@ -7131,13 +7131,16 @@
         <aside class="aside-right">
         </aside>
     </section>
-<div style="display: flex; gap: 4px; margin: 0 10px 10px 10px;">
-                    <button id="add-friend-btn" style="flex: 1; padding: 6px; font-size: 13px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-person-plus"></i> 加好友</button>
-                    <button id="create-group-btn" style="flex: 1; padding: 6px; font-size: 13px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-people"></i> 建群</button>
-                </div>
-    <section id="dashboard-chat">
+    
+   <section id="dashboard-chat">
         <div class="aside-left-wrap" style="width: 190px;">
             <aside class="aside-left tiny-scrollbar">
+
+                <div style="display: flex; gap: 4px; margin: 0 10px 10px 10px;">
+                    <button id="add-friend-btn" style="flex: 1; padding: 6px; font-size: 12px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-person-plus"></i> 加好友</button>
+                    <button id="create-group-btn" style="flex: 1; padding: 6px; font-size: 12px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-people"></i> 建群</button>
+                    <button id="invite-group-btn" style="flex: 1; padding: 6px; font-size: 12px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-person-lines-fill"></i> 邀请</button>
+                </div>
                 <!-- 搜索框 -->
                 <nav style="flex: none; max-height: 300px;">
                     <div class="chat-contact-type chat-contact-type-private">
@@ -24877,7 +24880,39 @@ if (textarea) {
 <div id="chat-toast-container"></div>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    
+
+    // 【新增】权限判断：如果没有 contact_any 权限，直接隐藏加好友按钮
+    if (typeof logged_user !== 'undefined' && logged_user && !logged_user.contact_any) {
+        const addFriendBtn = document.getElementById("add-friend-btn");
+        if (addFriendBtn) {
+            addFriendBtn.style.display = "none";
+        }
+    }
+    // 【新增】在管理员界面自动注入“生成邀请码”按钮
+    const adminObserver = new MutationObserver(() => {
+        const adminPanel = document.getElementById("dashboard-admin");
+        // 如果进入了管理员界面，且还没添加过按钮
+        if (adminPanel && !adminPanel.classList.contains("hidden") && !document.getElementById("admin-invite-btn")) {
+            // 在管理员面板顶部插入一个红色显眼的按钮
+            const btnHtml = `<button id="admin-invite-btn" style="margin: 15px; background-color: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🔑 生成新用户邀请码</button>`;
+            adminPanel.insertAdjacentHTML('afterbegin', btnHtml);
+            
+            // 绑定点击事件
+            document.getElementById("admin-invite-btn").addEventListener("click", function() {
+                fetch(top_level_path + '/admin/api/generate_invite_code', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if(data.success) {
+                        prompt("✅ 邀请码生成成功！请复制下方代码发送给新用户：", data.code);
+                    } else {
+                        alert("生成失败！请确保您是管理员。");
+                    }
+                }).catch(err => alert("网络错误：" + err));
+            });
+        }
+    });
+    // 监听界面切换
+    adminObserver.observe(document.body, { attributes: true, childList: true, subtree: true });
     // 1. 注册账号功能
     const registerBtn = document.getElementById("register-btn");
     if (registerBtn) {
@@ -24960,6 +24995,29 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 });
+// 4. 邀请好友进群功能
+    const inviteGroupBtn = document.getElementById("invite-group-btn");
+    if (inviteGroupBtn) {
+        inviteGroupBtn.addEventListener("click", function() {
+            let groupName = prompt("请输入要拉人的【群组名称】：");
+            if (!groupName) return;
+            
+            let targetName = prompt(`请输入要邀请进群 [${groupName}] 的【好友用户名】：`);
+            if (!targetName) return;
+            
+            fetch(top_level_path + '/chat/api/invite_to_group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gid: groupName, target_uid: targetName })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message || "请求完成");
+                if (data.success) location.reload(); // 刷新页面使新成员生效
+            })
+            .catch(err => alert("请求失败：" + err));
+        });
+    }
 </script>
 </body>
 
