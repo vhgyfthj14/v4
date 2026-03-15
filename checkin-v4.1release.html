@@ -25013,14 +25013,13 @@ document.addEventListener("DOMContentLoaded", function() {
                     return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
                 }
 
-                // 加密后发送网络请求 (自带终极错误侦测)
-                sha256(password).then(hashedPwd => {
-                    fetch(top_level_path + '/api/register', {
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ uid: username, passwd: hashedPwd, invitation_code: invite })
-                    })
-                    .then(async r => {
+            // 加密后发送网络请求
+            sha256(password).then(hashedPwd => {
+                fetch(top_level_path + '/api/register', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    // 【核心修复】：将发送的字段名严格对齐后端的要求
+                    body: JSON.stringify({ account: username, password_hash: hashedPwd, invite_code: invite })
+                }).then(async r => {
                         // 【核心修复】：先不急着当成 JSON 解析，先把后端返回的原始文本抽出来看！
                         const rawText = await r.text();
                         try {
