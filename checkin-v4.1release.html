@@ -7062,6 +7062,7 @@
 
             <div style="display: flex; gap: 10px; margin-top: 10px; width: 100%;">
                 <button id="login-btn" style="flex: 1;">登录</button>
+                <button id="register-btn" style="flex: 1; background-color: #28a745; border: 1px solid #28a745; color: white; border-radius: 4px; cursor: pointer;">注册账号</button>
             </div>
         </div>
     </section>
@@ -24896,7 +24897,36 @@ document.addEventListener("DOMContentLoaded", function() {
             adminToolsBtn.onmouseover = () => adminToolsBtn.style.transform = "scale(1.05)";
             adminToolsBtn.onmouseout = () => adminToolsBtn.style.transform = "scale(1)";
             document.body.appendChild(adminToolsBtn);
- 
+ // 2. 使用原生 <dialog> 绝对居中弹出
+            const modalHtml = `
+            <dialog id="custom-admin-modal" style="border: none; border-radius: 12px; padding: 0; background: transparent; margin: 0; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999999;">
+                <div style="background: white; padding: 30px; border-radius: 12px; width: 400px; max-width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                    <h2 style="margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; text-align: center;">🛠️ 管理员快捷指令</h2>
+                    
+                    <div style="margin-bottom: 25px; margin-top: 20px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #666;">1. 邀请新用户</h3>
+                        <button id="btn-quick-invite" style="width: 100%; background: #27ae60; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: background 0.2s;">🔑 点击生成一个邀请码</button>
+                    </div>
+
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #666;">2. 为用户开通“加好友”权限</h3>
+                        <input type="text" id="input-grant-uid" placeholder="输入要授权的账号 (例如: test_user1)" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; margin-bottom: 10px; font-size: 14px;">
+                        <button id="btn-quick-grant" style="width: 100%; background: #2980b9; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: background 0.2s;">✅ 一键开通权限</button>
+                    </div>
+
+                    <button id="btn-close-admin-modal" style="width: 100%; background: #95a5a6; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 15px; margin-top: 10px;">关闭窗口</button>
+                </div>
+            </dialog>
+            <style>
+                #custom-admin-modal::backdrop {
+                    background: rgba(0,0,0,0.6);
+                    backdrop-filter: blur(3px);
+                }
+            </style>
+            `;
+            document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+            const modal = document.getElementById("custom-admin-modal");
             // 绑定事件
             adminToolsBtn.addEventListener("click", () => modal.showModal());
             document.getElementById("btn-close-admin-modal").addEventListener("click", () => modal.close());
@@ -24912,24 +24942,23 @@ document.addEventListener("DOMContentLoaded", function() {
                     }
                 }).catch(err => alert("网络错误：" + err));
             });
+   // ==================================================
+    // 1. 登录页面：给现有的HTML注册按钮绑定功能
     // ==================================================
-    // 1. 登录页面：动态注入注册按钮 & 注册功能
-    // ==================================================
-    const loginBtn = document.getElementById("login-btn");
-    if (loginBtn && !document.getElementById("custom-register-btn")) {
-        const regBtn = document.createElement("button");
-        regBtn.id = "custom-register-btn";
-        regBtn.className = loginBtn.className;
-        regBtn.style.cssText = "background-color: #27ae60; border-color: #27ae60; margin-top: 10px;";
-        regBtn.innerText = "注册新账号";
-        loginBtn.parentNode.insertBefore(regBtn, loginBtn.nextSibling);
-
+    // 直接获取你已经在 HTML 中写好的那个按钮 (id="register-btn")
+    const regBtn = document.getElementById("register-btn");
+    
+    // 如果找到了这个按钮，就给它绑定点击事件
+    if (regBtn) {
         regBtn.addEventListener("click", function(e) {
-            e.preventDefault();
+            e.preventDefault(); // 阻止按钮默认的提交行为
+
             let username = prompt("【注册】请输入新账号名：");
             if(!username) return;
+            
             let password = prompt("【注册】请输入密码：");
             if(!password) return;
+            
             let invite = prompt("【注册】请输入管理员给您的邀请码：");
             if(!invite) return;
 
@@ -24940,14 +24969,23 @@ document.addEventListener("DOMContentLoaded", function() {
                 return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
             }
 
+            // 加密后发送网络请求
             sha256(password).then(hashedPwd => {
                 fetch(top_level_path + '/api/register', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ uid: username, passwd: hashedPwd, invitation_code: invite })
-                }).then(r => r.json()).then(data => {
-                    if (data.success) { alert("🎉 注册成功！请直接登录。"); location.reload(); } 
-                    else { alert("❌ 注册失败：" + (data.message || "未知错误")); }
-                }).catch(err => alert("网络错误：" + err));
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) { 
+                        alert("🎉 注册成功！请直接登录。"); 
+                        location.reload(); 
+                    } else { 
+                        alert("❌ 注册失败：" + (data.message || "未知错误")); 
+                    }
+                })
+                .catch(err => alert("网络错误：" + err));
             });
         });
     }
