@@ -25013,18 +25013,33 @@ document.addEventListener("DOMContentLoaded", function() {
                     return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
                 }
 
+                // 加密后发送网络请求 (自带终极错误侦测)
                 sha256(password).then(hashedPwd => {
                     fetch(top_level_path + '/api/register', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ uid: username, passwd: hashedPwd, invitation_code: invite })
-                    }).then(r => r.json()).then(data => {
-                        if (data.success) { alert("🎉 注册成功！请直接登录。"); location.reload(); } 
-                        else { alert("❌ 注册失败：" + (data.message || "未知错误")); }
-                    }).catch(err => alert("网络错误：" + err));
+                    })
+                    .then(async r => {
+                        // 【核心修复】：先不急着当成 JSON 解析，先把后端返回的原始文本抽出来看！
+                        const rawText = await r.text();
+                        try {
+                            return JSON.parse(rawText); // 如果是正常的 JSON，就解析它
+                        } catch (e) {
+                            // 如果解析失败，说明后端报错了，直接把后端的报错信息弹出来！
+                            throw new Error(`服务器返回了异常格式！\n状态码: ${r.status}\n真实返回内容: ${rawText.substring(0, 150)}...`);
+                        }
+                    })
+                    .then(data => {
+                        if (data.success) { 
+                            alert("🎉 注册成功！请直接登录。"); 
+                            location.reload(); 
+                        } else { 
+                            alert("❌ 注册失败：" + (data.message || "未知错误")); 
+                        }
+                    })
+                    .catch(err => alert("🚨 请求失败：\n" + err.message));
                 });
-            });
-        }
-    }, 500); // 核心魔法：每 0.5 秒找一次，直到找到你的按钮并绑定为止！
 
   // ==================================================
     // 2. 聊天页面：终极权限防护（CSS暴力隐藏 + JS动态放行）
