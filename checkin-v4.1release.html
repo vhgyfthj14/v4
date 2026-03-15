@@ -7062,7 +7062,6 @@
 
             <div style="display: flex; gap: 10px; margin-top: 10px; width: 100%;">
                 <button id="login-btn" style="flex: 1;">登录</button>
-                <button id="register-btn" style="flex: 1; background-color: #28a745; border: 1px solid #28a745; color: white; border-radius: 4px; cursor: pointer;">注册账号</button>
             </div>
         </div>
     </section>
@@ -24881,6 +24880,38 @@ if (textarea) {
 <script>
 document.addEventListener("DOMContentLoaded", function() {
 
+ // 每隔 1 秒钟智能检测一次登录状态，不再受限于页面刚刷新的那一瞬间！
+    const checkAdminTimer = setInterval(() => {
+        // 判断当前是否登录了管理员账号
+        if (typeof logged_admin !== 'undefined' && logged_admin === true) {
+            
+            // 防止重复添加（如果已经有了就不再加了）
+            if (document.getElementById("btn-custom-admin-tools")) return;
+            
+            // 00. 在右下角创建一个红色的悬浮按钮
+            const adminToolsBtn = document.createElement("button");
+            adminToolsBtn.id = "btn-custom-admin-tools"; // 加上专属ID防止重复
+            adminToolsBtn.innerHTML = "🛠️ 管理员工具箱";
+            adminToolsBtn.style.cssText = "position: fixed; bottom: 30px; right: 30px; z-index: 9999999; background: #e74c3c; color: white; border: none; padding: 15px 25px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 16px; transition: transform 0.2s;";
+            adminToolsBtn.onmouseover = () => adminToolsBtn.style.transform = "scale(1.05)";
+            adminToolsBtn.onmouseout = () => adminToolsBtn.style.transform = "scale(1)";
+            document.body.appendChild(adminToolsBtn);
+ 
+            // 绑定事件
+            adminToolsBtn.addEventListener("click", () => modal.showModal());
+            document.getElementById("btn-close-admin-modal").addEventListener("click", () => modal.close());
+
+            document.getElementById("btn-quick-invite").addEventListener("click", () => {
+                fetch(top_level_path + '/admin/api/generate_invite_code', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if(data.success) {
+                        prompt("✅ 邀请码生成成功！请复制下方代码发给朋友：", data.code);
+                    } else {
+                        alert("生成失败！");
+                    }
+                }).catch(err => alert("网络错误：" + err));
+            });
     // ==================================================
     // 1. 登录页面：动态注入注册按钮 & 注册功能
     // ==================================================
@@ -24921,19 +24952,29 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
+   // ==================================================
+    // 2. 聊天页面：动态权限侦测（解决初次登录不隐藏的问题）
     // ==================================================
-    // 2. 聊天页面：根据全新权限 can_add_friend 隐藏无权限按钮
-    // ==================================================
-    if (typeof logged_user !== 'undefined' && logged_user) {
-        if (!logged_user.can_add_friend) {
+    setInterval(() => {
+        // 只要用户登录了，就开始高频巡逻
+        if (typeof logged_user !== 'undefined' && logged_user) {
             const addFriendBtn = document.getElementById("add-friend-btn");
             const createGroupBtn = document.getElementById("create-group-btn");
             const inviteGroupBtn = document.getElementById("invite-group-btn");
-            if (addFriendBtn) addFriendBtn.style.display = "none";
-            if (createGroupBtn) createGroupBtn.style.display = "none";
-            if (inviteGroupBtn) inviteGroupBtn.style.display = "none";
+
+            // 只要没有 can_add_friend 也没有 contact_any 权限，就死死隐藏住
+            if (!logged_user.can_add_friend && !logged_user.contact_any) {
+                if (addFriendBtn && addFriendBtn.style.display !== "none") addFriendBtn.style.display = "none";
+                if (createGroupBtn && createGroupBtn.style.display !== "none") createGroupBtn.style.display = "none";
+                if (inviteGroupBtn && inviteGroupBtn.style.display !== "none") inviteGroupBtn.style.display = "none";
+            } else {
+                // 如果管理员在后台突然给了他权限，不用刷新，按钮会立马冒出来！
+                if (addFriendBtn && addFriendBtn.style.display === "none") addFriendBtn.style.display = "block";
+                if (createGroupBtn && createGroupBtn.style.display === "none") createGroupBtn.style.display = "block";
+                if (inviteGroupBtn && inviteGroupBtn.style.display === "none") inviteGroupBtn.style.display = "block";
+            }
         }
-    }
+    }, 500); // 核心魔法：每 0.5 秒自动巡逻一次，彻底无视刷新问题！
 
     // ==================================================
     // 3. 聊天页面：加好友、建群、邀请 按钮点击事件
