@@ -24881,7 +24881,7 @@ if (textarea) {
 <script>
 document.addEventListener("DOMContentLoaded", function() {
 
- // 每隔 1 秒钟智能检测一次登录状态，不再受限于页面刚刷新的那一瞬间！
+// 每隔 1 秒钟智能检测一次登录状态，不再受限于页面刚刷新的那一瞬间！
     const checkAdminTimer = setInterval(() => {
         // 判断当前是否登录了管理员账号
         if (typeof logged_admin !== 'undefined' && logged_admin === true) {
@@ -24889,7 +24889,7 @@ document.addEventListener("DOMContentLoaded", function() {
             // 防止重复添加（如果已经有了就不再加了）
             if (document.getElementById("btn-custom-admin-tools")) return;
             
-            // 00. 在右下角创建一个红色的悬浮按钮
+            // 1. 在右下角创建一个红色的悬浮按钮
             const adminToolsBtn = document.createElement("button");
             adminToolsBtn.id = "btn-custom-admin-tools"; // 加上专属ID防止重复
             adminToolsBtn.innerHTML = "🛠️ 管理员工具箱";
@@ -24897,7 +24897,8 @@ document.addEventListener("DOMContentLoaded", function() {
             adminToolsBtn.onmouseover = () => adminToolsBtn.style.transform = "scale(1.05)";
             adminToolsBtn.onmouseout = () => adminToolsBtn.style.transform = "scale(1)";
             document.body.appendChild(adminToolsBtn);
- // 2. 使用原生 <dialog> 绝对居中弹出
+
+            // 2. 使用原生 <dialog> 绝对居中弹出
             const modalHtml = `
             <dialog id="custom-admin-modal" style="border: none; border-radius: 12px; padding: 0; background: transparent; margin: 0; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999999;">
                 <div style="background: white; padding: 30px; border-radius: 12px; width: 400px; max-width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
@@ -24927,6 +24928,7 @@ document.addEventListener("DOMContentLoaded", function() {
             document.body.insertAdjacentHTML("beforeend", modalHtml);
 
             const modal = document.getElementById("custom-admin-modal");
+            
             // 绑定事件
             adminToolsBtn.addEventListener("click", () => modal.showModal());
             document.getElementById("btn-close-admin-modal").addEventListener("click", () => modal.close());
@@ -24942,16 +24944,58 @@ document.addEventListener("DOMContentLoaded", function() {
                     }
                 }).catch(err => alert("网络错误：" + err));
             });
+
+            document.getElementById("btn-quick-grant").addEventListener("click", () => {
+                const uid = document.getElementById("input-grant-uid").value.trim();
+                if (!uid) return alert("⚠️ 请先在输入框填写你要授权的用户名！");
+                
+                document.getElementById("btn-quick-grant").innerText = "处理中...";
+                
+                fetch(top_level_path + '/admin/api/user/' + uid, { method: 'GET' })
+                .then(r => {
+                    if (!r.ok) throw new Error("❌ 找不到该用户，请检查名字是否拼写正确");
+                    return r.json();
+                })
+                .then(user_attr => {
+                    user_attr.contact_any = 1; 
+                    return fetch(top_level_path + '/admin/api/user/' + uid, { 
+                        method: 'PUT', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(user_attr)
+                    });
+                })
+                .then(r => r.json())
+                .then(data => {
+                    alert("🎉 太棒了！成功为用户【" + uid + "】开通了交友和建群的权限！");
+                    document.getElementById("input-grant-uid").value = "";
+                })
+                .catch(err => alert(err.message))
+                .finally(() => {
+                    document.getElementById("btn-quick-grant").innerText = "✅ 一键开通权限";
+                });
+            });
+            
+        } else if (typeof logged_admin !== 'undefined' && logged_admin === false) {
+            // 如果退出了管理员，自动清理掉按钮和弹窗
+            const btn = document.getElementById("btn-custom-admin-tools");
+            const mod = document.getElementById("custom-admin-modal");
+            if(btn) btn.remove();
+            if(mod) mod.remove();
+        }
+    }, 1000); // 核心魔法：每隔 1 秒检测一次！
    // ==================================================
-    // 1. 登录页面：给现有的HTML注册按钮绑定功能
-    // ==================================================
-    // 直接获取你已经在 HTML 中写好的那个按钮 (id="register-btn")
+// 1. 登录页面：给现有的HTML注册按钮绑定功能
+// ==================================================
+// 【关键修复】：套上 DOMContentLoaded，确保网页加载完再去寻找按钮
+document.addEventListener("DOMContentLoaded", function() {
+    
+    // 获取你已经在 HTML 中写好的那个按钮 (id="register-btn")
     const regBtn = document.getElementById("register-btn");
     
     // 如果找到了这个按钮，就给它绑定点击事件
     if (regBtn) {
         regBtn.addEventListener("click", function(e) {
-            e.preventDefault(); // 阻止按钮默认的提交行为
+            e.preventDefault(); // 阻止按钮默认的刷新行为
 
             let username = prompt("【注册】请输入新账号名：");
             if(!username) return;
@@ -24989,31 +25033,50 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         });
     }
+});
 
-   // ==================================================
-    // 2. 聊天页面：动态权限侦测（解决初次登录不隐藏的问题）
+  // ==================================================
+    // 2. 聊天页面：终极权限防护（CSS暴力隐藏 + JS动态放行）
     // ==================================================
-    setInterval(() => {
-        // 只要用户登录了，就开始高频巡逻
-        if (typeof logged_user !== 'undefined' && logged_user) {
-            const addFriendBtn = document.getElementById("add-friend-btn");
-            const createGroupBtn = document.getElementById("create-group-btn");
-            const inviteGroupBtn = document.getElementById("invite-group-btn");
+    
+    // 【第一步：注入最高优先级的 CSS，默认把这三个按钮死死隐藏！】
+    // 这样无论网页怎么切、怎么卡，没给权限前它们绝对出不来。
+    if (!document.getElementById("security-css")) {
+        const style = document.createElement("style");
+        style.id = "security-css";
+        style.innerHTML = `
+            /* 只要 body 上没有 has-social-privilege 这个类，就强行隐藏这三个按钮 */
+            body:not(.has-social-privilege) #add-friend-btn,
+            body:not(.has-social-privilege) #create-group-btn,
+            body:not(.has-social-privilege) #invite-group-btn {
+                display: none !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
 
-            // 只要没有 can_add_friend 也没有 contact_any 权限，就死死隐藏住
-            if (!logged_user.can_add_friend && !logged_user.contact_any) {
-                if (addFriendBtn && addFriendBtn.style.display !== "none") addFriendBtn.style.display = "none";
-                if (createGroupBtn && createGroupBtn.style.display !== "none") createGroupBtn.style.display = "none";
-                if (inviteGroupBtn && inviteGroupBtn.style.display !== "none") inviteGroupBtn.style.display = "none";
-            } else {
-                // 如果管理员在后台突然给了他权限，不用刷新，按钮会立马冒出来！
-                if (addFriendBtn && addFriendBtn.style.display === "none") addFriendBtn.style.display = "block";
-                if (createGroupBtn && createGroupBtn.style.display === "none") createGroupBtn.style.display = "block";
-                if (inviteGroupBtn && inviteGroupBtn.style.display === "none") inviteGroupBtn.style.display = "block";
+    // 【第二步：智能巡逻兵，只有确认你是 VIP，才给你加上特权类名】
+    setInterval(() => {
+        let isVip = false; // 假设当前用户没特权
+        
+        // 如果系统加载出了用户信息
+        if (typeof logged_user !== 'undefined' && logged_user) {
+            // 严谨判断：兼容数字 1、字符串 "1" 或 true
+            const canAdd = (logged_user.can_add_friend == 1 || logged_user.can_add_friend === true);
+            const canContact = (logged_user.contact_any == 1 || logged_user.contact_any === true);
+            
+            if (canAdd || canContact) {
+                isVip = true; // 确认是特权用户
             }
         }
-    }, 500); // 核心魔法：每 0.5 秒自动巡逻一次，彻底无视刷新问题！
 
+        // 动态颁发或收回特权（控制 CSS 的显隐）
+        if (isVip) {
+            document.body.classList.add("has-social-privilege");
+        } else {
+            document.body.classList.remove("has-social-privilege");
+        }
+    }, 500);
     // ==================================================
     // 3. 聊天页面：加好友、建群、邀请 按钮点击事件
     // ==================================================
