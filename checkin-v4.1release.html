@@ -7131,13 +7131,16 @@
         <aside class="aside-right">
         </aside>
     </section>
-<div style="display: flex; gap: 4px; margin: 0 10px 10px 10px;">
-                    <button id="add-friend-btn" style="flex: 1; padding: 6px; font-size: 13px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-person-plus"></i> 加好友</button>
-                    <button id="create-group-btn" style="flex: 1; padding: 6px; font-size: 13px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-people"></i> 建群</button>
-                </div>
-    <section id="dashboard-chat">
+    
+   <section id="dashboard-chat">
         <div class="aside-left-wrap" style="width: 190px;">
             <aside class="aside-left tiny-scrollbar">
+
+                <div style="display: flex; gap: 4px; margin: 0 10px 10px 10px;">
+                    <button id="add-friend-btn" style="flex: 1; padding: 6px; font-size: 12px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-person-plus"></i> 加好友</button>
+                    <button id="create-group-btn" style="flex: 1; padding: 6px; font-size: 12px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-people"></i> 建群</button>
+                    <button id="invite-group-btn" style="flex: 1; padding: 6px; font-size: 12px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-person-lines-fill"></i> 邀请</button>
+                </div>
                 <!-- 搜索框 -->
                 <nav style="flex: none; max-height: 300px;">
                     <div class="chat-contact-type chat-contact-type-private">
@@ -7182,70 +7185,6 @@
         <div class="aside-left-wrap">
             <aside class="aside-left tiny-scrollbar">
                 <nav>
-                <div style="margin: 10px; padding: 12px; background: #fdf2f2; border: 1px solid #e74c3c; border-radius: 6px;">
-                    <div style="font-size: 13px; font-weight: bold; color: #c0392b; margin-bottom: 8px;">🛠️ 管理员特权</div>
-                    
-                    <button id="btn-static-invite" style="width: 100%; background: #e74c3c; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 12px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🔑 1. 生成邀请码</button>
-                    
-                    <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 4px;">✅ 2. 为用户开通权限：</div>
-                    <input type="text" id="input-static-grant" placeholder="输入要授权的账号" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 6px; box-sizing: border-box; font-size: 12px; outline: none;">
-                    <button id="btn-static-grant" style="width: 100%; background: #2980b9; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">一键开通</button>
-                </div>
-                ```
-*(粘贴完后，下面紧接着就是原代码里的 `<nav>` 标签了)*
-
-#### 第二步：在底部加入纯净的点击事件
-
-这次我们在底部写的 JavaScript **绝不生成任何可见元素**，只负责绑定上面那两个按钮的点击网络请求。
-
-滑动到文件的**最底部**（在 `</body>` 的上方），随便找个 `<script> ... </script>` 块，把下面这段代码加进去：
-
-```javascript
-// --- 管理员特权按钮功能逻辑 ---
-document.addEventListener("DOMContentLoaded", function() {
-    // 1. 生成邀请码
-    const btnInvite = document.getElementById("btn-static-invite");
-    if (btnInvite) {
-        btnInvite.addEventListener("click", () => {
-            fetch(top_level_path + '/admin/api/generate_invite_code', { method: 'POST' })
-            .then(r => r.json())
-            .then(data => {
-                if(data.success) prompt("✅ 邀请码生成成功！请复制下方代码发给朋友：", data.code);
-                else alert("生成失败！请确保你登录了管理员账号。");
-            }).catch(err => alert("网络错误：" + err));
-        });
-    }
-
-    // 2. 一键开通权限
-    const btnGrant = document.getElementById("btn-static-grant");
-    if (btnGrant) {
-        btnGrant.addEventListener("click", () => {
-            const uid = document.getElementById("input-static-grant").value.trim();
-            if (!uid) return alert("⚠️ 请先在输入框填写你要授权的用户名！");
-
-            btnGrant.innerText = "处理中...";
-
-            fetch(top_level_path + '/admin/api/user/' + uid, { method: 'GET' })
-            .then(r => {
-                if (!r.ok) throw new Error("❌ 找不到该用户，请检查名字是否拼写正确");
-                return r.json();
-            })
-            .then(user_attr => {
-                user_attr.contact_any = 1; 
-                return fetch(top_level_path + '/admin/api/user/' + uid, {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(user_attr)
-                });
-            })
-            .then(r => r.json())
-            .then(data => {
-                alert("🎉 太棒了！成功为用户【" + uid + "】开通了交友和建群的权限！");
-                document.getElementById("input-static-grant").value = "";
-            })
-            .catch(err => alert(err.message))
-            .finally(() => btnGrant.innerText = "一键开通");
-        });
-    }
-});
                     <ol class="nav-buttons">
                     </ol>
                 </nav>
@@ -24940,91 +24879,110 @@ if (textarea) {
 
 <div id="chat-toast-container"></div>
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    
-    // 1. 注册账号功能
-    const registerBtn = document.getElementById("register-btn");
-    if (registerBtn) {
-        registerBtn.addEventListener("click", function() {
-            // 获取用户在输入框里填写的账号密码
-            const accountInput = document.getElementById("login-input-account").value.trim();
-            const passwordInput = document.getElementById("login-input-password").value.trim();
+    // 每隔 1 秒钟智能检测一次登录状态，不再受限于页面刚刷新的那一瞬间！
+    const checkAdminTimer = setInterval(() => {
+        // 判断当前是否登录了管理员账号
+        if (typeof logged_admin !== 'undefined' && logged_admin === true) {
             
-            if (!accountInput || !passwordInput) {
-                alert("请先在输入框填写你要注册的【账号】和【密码】！");
-                return;
-            }
+            // 防止重复添加（如果已经有了就不再加了）
+            if (document.getElementById("btn-custom-admin-tools")) return;
             
-            const inviteCode = prompt("请输入管理员提供的【邀请码】：");
-            if (!inviteCode) return;
+            // 1. 在右下角创建一个红色的悬浮按钮
+            const adminToolsBtn = document.createElement("button");
+            adminToolsBtn.id = "btn-custom-admin-tools"; // 加上专属ID防止重复
+            adminToolsBtn.innerHTML = "🛠️ 管理员工具箱";
+            adminToolsBtn.style.cssText = "position: fixed; bottom: 30px; right: 30px; z-index: 9999999; background: #e74c3c; color: white; border: none; padding: 15px 25px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 16px; transition: transform 0.2s;";
+            adminToolsBtn.onmouseover = () => adminToolsBtn.style.transform = "scale(1.05)";
+            adminToolsBtn.onmouseout = () => adminToolsBtn.style.transform = "scale(1)";
+            document.body.appendChild(adminToolsBtn);
+
+            // 2. 使用原生 <dialog> 绝对居中弹出
+            const modalHtml = `
+            <dialog id="custom-admin-modal" style="border: none; border-radius: 12px; padding: 0; background: transparent; margin: 0; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999999;">
+                <div style="background: white; padding: 30px; border-radius: 12px; width: 400px; max-width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                    <h2 style="margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; text-align: center;">🛠️ 管理员快捷指令</h2>
+                    
+                    <div style="margin-bottom: 25px; margin-top: 20px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #666;">1. 邀请新用户</h3>
+                        <button id="btn-quick-invite" style="width: 100%; background: #27ae60; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: background 0.2s;">🔑 点击生成一个邀请码</button>
+                    </div>
+
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #666;">2. 为用户开通“加好友”权限</h3>
+                        <input type="text" id="input-grant-uid" placeholder="输入要授权的账号 (例如: test_user1)" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; margin-bottom: 10px; font-size: 14px;">
+                        <button id="btn-quick-grant" style="width: 100%; background: #2980b9; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: background 0.2s;">✅ 一键开通权限</button>
+                    </div>
+
+                    <button id="btn-close-admin-modal" style="width: 100%; background: #95a5a6; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 15px; margin-top: 10px;">关闭窗口</button>
+                </div>
+            </dialog>
+            <style>
+                #custom-admin-modal::backdrop {
+                    background: rgba(0,0,0,0.6);
+                    backdrop-filter: blur(3px);
+                }
+            </style>
+            `;
+            document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+            const modal = document.getElementById("custom-admin-modal");
             
-            // 对密码进行加密后发送给后端
-            hash_password(passwordInput).then(password_hash => {
-                fetch(top_level_path + '/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        account: accountInput, 
-                        password_hash: password_hash, 
-                        invite_code: inviteCode 
-                    })
+            // 绑定事件
+            adminToolsBtn.addEventListener("click", () => modal.showModal());
+            document.getElementById("btn-close-admin-modal").addEventListener("click", () => modal.close());
+
+            document.getElementById("btn-quick-invite").addEventListener("click", () => {
+                fetch(top_level_path + '/admin/api/generate_invite_code', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if(data.success) {
+                        prompt("✅ 邀请码生成成功！请复制下方代码发给朋友：", data.code);
+                    } else {
+                        alert("生成失败！");
+                    }
+                }).catch(err => alert("网络错误：" + err));
+            });
+
+            document.getElementById("btn-quick-grant").addEventListener("click", () => {
+                const uid = document.getElementById("input-grant-uid").value.trim();
+                if (!uid) return alert("⚠️ 请先在输入框填写你要授权的用户名！");
+                
+                document.getElementById("btn-quick-grant").innerText = "处理中...";
+                
+                fetch(top_level_path + '/admin/api/user/' + uid, { method: 'GET' })
+                .then(r => {
+                    if (!r.ok) throw new Error("❌ 找不到该用户，请检查名字是否拼写正确");
+                    return r.json();
+                })
+                .then(user_attr => {
+                    user_attr.contact_any = 1; 
+                    return fetch(top_level_path + '/admin/api/user/' + uid, { 
+                        method: 'PUT', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(user_attr)
+                    });
                 })
                 .then(r => r.json())
                 .then(data => {
-                    alert(data.message || (data.success ? "注册成功，请直接点击登录" : "注册失败"));
-                    if(data.success) {
-                        // 注册成功，可以保留账号框，方便用户直接点登录
-                        document.getElementById("login-input-password").value = "";
-                    }
+                    alert("🎉 太棒了！成功为用户【" + uid + "】开通了交友和建群的权限！");
+                    document.getElementById("input-grant-uid").value = "";
                 })
-                .catch(err => alert("网络错误：" + err));
+                .catch(err => alert(err.message))
+                .finally(() => {
+                    document.getElementById("btn-quick-grant").innerText = "✅ 一键开通权限";
+                });
             });
-        });
-    }
-
-    // 2. 添加好友功能
-    const addFriendBtn = document.getElementById("add-friend-btn");
-    if (addFriendBtn) {
-        addFriendBtn.addEventListener("click", function() {
-            let targetName = prompt("请输入你要添加的好友用户名：");
-            if (!targetName) return;
             
-            fetch(top_level_path + '/chat/api/add_friend', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ target_uid: targetName })
-            })
-            .then(r => r.json())
-            .then(data => {
-                alert(data.message || "请求完成");
-                if (data.success) location.reload(); // 刷新页面即可在左侧看到新联系人
-            })
-            .catch(err => alert("请求失败：" + err));
-        });
-    }
-
-    // 3. 创建群聊功能
-    const createGroupBtn = document.getElementById("create-group-btn");
-    if (createGroupBtn) {
-        createGroupBtn.addEventListener("click", function() {
-            let groupName = prompt("请输入新群组的名称（只能包含字母、数字或中文）：");
-            if (!groupName) return;
-            
-            fetch(top_level_path + '/chat/api/create_group', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ gid: groupName })
-            })
-            .then(r => r.json())
-            .then(data => {
-                alert(data.message || "请求完成");
-                if (data.success) location.reload(); // 刷新页面即可在左侧看到新群聊
-            })
-            .catch(err => alert("请求失败：" + err));
-        });
-    }
-});
+        } else if (typeof logged_admin !== 'undefined' && logged_admin === false) {
+            // 如果退出了管理员，自动清理掉按钮和弹窗
+            const btn = document.getElementById("btn-custom-admin-tools");
+            const mod = document.getElementById("custom-admin-modal");
+            if(btn) btn.remove();
+            if(mod) mod.remove();
+        }
+    }, 1000); // 核心魔法：每隔 1 秒检测一次！
 </script>
+
 </body>
 
 </html>
