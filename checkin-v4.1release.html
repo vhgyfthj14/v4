@@ -24983,57 +24983,48 @@ document.addEventListener("DOMContentLoaded", function() {
             if(mod) mod.remove();
         }
     }, 1000); // 核心魔法：每隔 1 秒检测一次！
-   // ==================================================
-// 1. 登录页面：给现有的HTML注册按钮绑定功能
 // ==================================================
-// 【关键修复】：套上 DOMContentLoaded，确保网页加载完再去寻找按钮
-document.addEventListener("DOMContentLoaded", function() {
-    
-    // 获取你已经在 HTML 中写好的那个按钮 (id="register-btn")
-    const regBtn = document.getElementById("register-btn");
-    
-    // 如果找到了这个按钮，就给它绑定点击事件
-    if (regBtn) {
-        regBtn.addEventListener("click", function(e) {
-            e.preventDefault(); // 阻止按钮默认的刷新行为
-
-            let username = prompt("【注册】请输入新账号名：");
-            if(!username) return;
+    // 1. 登录页面：给HTML自带的“注册账号”按钮绑定功能
+    // ==================================================
+    // 使用定时器智能追踪，解决单页应用加载慢导致找不到按钮、点不动的问题
+    let bindRegisterTimer = setInterval(() => {
+        // 直接去抓你写在 HTML 里的那个现成的按钮
+        let realRegBtn = document.getElementById("register-btn");
+        
+        // 如果找到了按钮，并且确认它还没有被绑定过功能
+        if (realRegBtn && !realRegBtn.dataset.isBound) {
+            realRegBtn.dataset.isBound = "true"; // 打个标记，防止重复绑定
+            clearInterval(bindRegisterTimer);    // 成功绑定后，关掉追踪雷达
             
-            let password = prompt("【注册】请输入密码：");
-            if(!password) return;
-            
-            let invite = prompt("【注册】请输入管理员给您的邀请码：");
-            if(!invite) return;
+            realRegBtn.addEventListener("click", function(e) {
+                e.preventDefault(); // 防止点击后页面乱刷新
+                
+                let username = prompt("【注册】请输入新账号名：");
+                if(!username) return;
+                let password = prompt("【注册】请输入密码：");
+                if(!password) return;
+                let invite = prompt("【注册】请输入管理员给您的邀请码：");
+                if(!invite) return;
 
-            // 密码加密逻辑
-            async function sha256(message) {
-                const msgBuffer = new TextEncoder().encode(message);
-                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-                return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-            }
+                // 密码加密逻辑
+                async function sha256(message) {
+                    const msgBuffer = new TextEncoder().encode(message);
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+                }
 
-            // 加密后发送网络请求
-            sha256(password).then(hashedPwd => {
-                fetch(top_level_path + '/api/register', {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ uid: username, passwd: hashedPwd, invitation_code: invite })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) { 
-                        alert("🎉 注册成功！请直接登录。"); 
-                        location.reload(); 
-                    } else { 
-                        alert("❌ 注册失败：" + (data.message || "未知错误")); 
-                    }
-                })
-                .catch(err => alert("网络错误：" + err));
+                sha256(password).then(hashedPwd => {
+                    fetch(top_level_path + '/api/register', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uid: username, passwd: hashedPwd, invitation_code: invite })
+                    }).then(r => r.json()).then(data => {
+                        if (data.success) { alert("🎉 注册成功！请直接登录。"); location.reload(); } 
+                        else { alert("❌ 注册失败：" + (data.message || "未知错误")); }
+                    }).catch(err => alert("网络错误：" + err));
+                });
             });
-        });
-    }
-});
+        }
+    }, 500); // 核心魔法：每 0.5 秒找一次，直到找到你的按钮并绑定为止！
 
   // ==================================================
     // 2. 聊天页面：终极权限防护（CSS暴力隐藏 + JS动态放行）
