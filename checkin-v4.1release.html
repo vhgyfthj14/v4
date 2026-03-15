@@ -7060,7 +7060,10 @@
                 <button type="button" class="clear-input-btn" data-target="login-input-password">清空</button>
             </label>
 
-            <button id="login-btn">登录</button>
+            <div style="display: flex; gap: 10px; margin-top: 10px; width: 100%;">
+                <button id="login-btn" style="flex: 1;">登录</button>
+                <button id="register-btn" style="flex: 1; background-color: #28a745; border: 1px solid #28a745; color: white; border-radius: 4px; cursor: pointer;">注册账号</button>
+            </div>
         </div>
     </section>
 
@@ -7128,7 +7131,10 @@
         <aside class="aside-right">
         </aside>
     </section>
-
+<div style="display: flex; gap: 4px; margin: 0 10px 10px 10px;">
+                    <button id="add-friend-btn" style="flex: 1; padding: 6px; font-size: 13px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-person-plus"></i> 加好友</button>
+                    <button id="create-group-btn" style="flex: 1; padding: 6px; font-size: 13px; background: transparent; border: 1px solid #3498db; border-radius: 4px; cursor: pointer; color: #3498db; transition: all 0.2s;" onmouseover="this.style.background='#3498db'; this.style.color='#fff'" onmouseout="this.style.background='transparent'; this.style.color='#3498db'"><i class="bi bi-people"></i> 建群</button>
+                </div>
     <section id="dashboard-chat">
         <div class="aside-left-wrap" style="width: 190px;">
             <aside class="aside-left tiny-scrollbar">
@@ -23964,12 +23970,47 @@
             }
 
             ws_send(json, callback) {
-                json.counter = this.ws_counter;
-                this.ws_callbacks[json.counter.toString()] = callback;
-                this.ws_counter++;
-                // console.log("websocket 发送消息", json);
-                this.ws_client.send(JSON.stringify(json));
+            // 【系统优化：解决 Cloudflare 免费版 50 次数据库查询限制】
+            if (this.cf_ws_action_count === undefined) {
+                this.cf_ws_action_count = 0;
             }
+            this.cf_ws_action_count++;
+
+            // 如果当前连接发起的动作超过 15 次，主动断开并重连，刷新后端 50 次的免费额度
+            if (this.cf_ws_action_count >= 15) {
+                console.log("⚡ 达到请求阈值，主动断开 WebSocket 以刷新 Cloudflare 免费额度...");
+                this.cf_ws_action_count = 0; // 计数器归零
+                
+                this.ws_close();   // 主动关闭当前连接，清除缓存
+                this.ws_connect(); // 立即发起新的连接
+                
+                // 延迟 1.5 秒等待重连成功后，补发当前被拦截的这条消息
+                setTimeout(() => {
+                    console.log("⚡ 自动重连完成，补发消息...");
+                    this.ws_send(json, callback); 
+                }, 1500);
+                
+                return; // 拦截本次直接发送
+            }
+
+            // 原本的逻辑
+            json.counter = this.ws_counter;
+            this.ws_callbacks[json.counter.toString()] = callback;
+            this.ws_counter++;
+            
+            // 确保安全发送：如果刚好碰上断线，则等待重连后再发
+            if (this.ws_isopen()) {
+                this.ws_client.send(JSON.stringify(json));
+            } else {
+                console.warn("WebSocket 尚未开启，尝试等待连接...");
+                if (!this.ws_client) this.ws_connect();
+                setTimeout(() => {
+                    if (this.ws_isopen()) {
+                        this.ws_client.send(JSON.stringify(json));
+                    }
+                }, 1500);
+            }
+        }
 
             ws_receive(json) {
                 const counter = json.counter?.toString();
@@ -24834,7 +24875,92 @@ if (textarea) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
 
 <div id="chat-toast-container"></div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    
+    // 1. 注册账号功能
+    const registerBtn = document.getElementById("register-btn");
+    if (registerBtn) {
+        registerBtn.addEventListener("click", function() {
+            // 获取用户在输入框里填写的账号密码
+            const accountInput = document.getElementById("login-input-account").value.trim();
+            const passwordInput = document.getElementById("login-input-password").value.trim();
+            
+            if (!accountInput || !passwordInput) {
+                alert("请先在输入框填写你要注册的【账号】和【密码】！");
+                return;
+            }
+            
+            const inviteCode = prompt("请输入管理员提供的【邀请码】：");
+            if (!inviteCode) return;
+            
+            // 对密码进行加密后发送给后端
+            hash_password(passwordInput).then(password_hash => {
+                fetch(top_level_path + '/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        account: accountInput, 
+                        password_hash: password_hash, 
+                        invite_code: inviteCode 
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || (data.success ? "注册成功，请直接点击登录" : "注册失败"));
+                    if(data.success) {
+                        // 注册成功，可以保留账号框，方便用户直接点登录
+                        document.getElementById("login-input-password").value = "";
+                    }
+                })
+                .catch(err => alert("网络错误：" + err));
+            });
+        });
+    }
 
+    // 2. 添加好友功能
+    const addFriendBtn = document.getElementById("add-friend-btn");
+    if (addFriendBtn) {
+        addFriendBtn.addEventListener("click", function() {
+            let targetName = prompt("请输入你要添加的好友用户名：");
+            if (!targetName) return;
+            
+            fetch(top_level_path + '/chat/api/add_friend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_uid: targetName })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message || "请求完成");
+                if (data.success) location.reload(); // 刷新页面即可在左侧看到新联系人
+            })
+            .catch(err => alert("请求失败：" + err));
+        });
+    }
+
+    // 3. 创建群聊功能
+    const createGroupBtn = document.getElementById("create-group-btn");
+    if (createGroupBtn) {
+        createGroupBtn.addEventListener("click", function() {
+            let groupName = prompt("请输入新群组的名称（只能包含字母、数字或中文）：");
+            if (!groupName) return;
+            
+            fetch(top_level_path + '/chat/api/create_group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gid: groupName })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message || "请求完成");
+                if (data.success) location.reload(); // 刷新页面即可在左侧看到新群聊
+            })
+            .catch(err => alert("请求失败：" + err));
+        });
+    }
+});
+</script>
 </body>
 
 </html>
