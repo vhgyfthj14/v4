@@ -24985,6 +24985,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }, 1000); // 核心魔法：每隔 1 秒检测一次！
 // ==================================================
 // ==================================================
+// ==================================================
     // 1. 登录页面：给HTML自带的“注册账号”按钮绑定功能
     // ==================================================
     // 使用定时器智能追踪，解决单页应用加载慢导致找不到按钮、点不动的问题
@@ -25014,16 +25015,24 @@ document.addEventListener("DOMContentLoaded", function() {
                     return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
                 }
 
-// 加密后发送网络请求
-            sha256(password).then(hashedPwd => {
-                fetch(top_level_path + '/api/register', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    // 【核心修复】：将发送的字段名严格对齐后端的要求
-                    body: JSON.stringify({ account: username, password_hash: hashedPwd, invite_code: invite })
-                }).then(async r => {
-                        if (data.success) { alert("🎉 注册成功！请直接登录。"); location.reload(); } 
-                        else { alert("❌ 注册失败：" + (data.message || "未知错误")); }
-                    }).catch(err => alert("网络错误：" + err));
+                // 加密后发送网络请求
+                sha256(password).then(hashedPwd => {
+                    fetch(top_level_path + '/api/register', {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' },
+                        // 【核心修复】：将发送的字段名严格对齐后端的要求
+                        body: JSON.stringify({ account: username, password_hash: hashedPwd, invite_code: invite })
+                    })
+                    .then(r => r.json()) // ⚠️ 修复：必须先解析服务器返回的 JSON！
+                    .then(data => {      // ⚠️ 修复：把解析出来的结果命名为 data
+                        if (data.success) { 
+                            alert("🎉 注册成功！请直接登录。"); 
+                            location.reload(); 
+                        } else { 
+                            alert("❌ 注册失败：" + (data.message || "未知错误")); 
+                        }
+                    })
+                    .catch(err => alert("网络错误：" + err));
                 });
             });
         }
