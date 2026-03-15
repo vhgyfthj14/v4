@@ -24886,82 +24886,135 @@ if (textarea) {
 
 <div id="chat-toast-container"></div>
 <script>
-    setInterval(() => {
-        // 只有管理员登录后才会执行
-        if (typeof logged_admin !== 'undefined' && logged_admin === true) {
-            
-            // 如果面板已经存在了，就不重复添加
-            if (document.getElementById("inline-admin-panel")) return;
-
-            // 寻找左侧边栏 (聊天界面和后台界面都有这个 class)
-            const asideLeft = document.querySelector('.aside-left');
-            if (!asideLeft) return;
-
-            // 创建一个规规矩矩的区块（不悬浮、不固定，就待在文档流里）
-            const adminPanel = document.createElement("div");
-            adminPanel.id = "inline-admin-panel";
-            adminPanel.style.cssText = "margin: 10px; padding: 12px; background: #f8eff0; border: 1px solid #e74c3c; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex-shrink: 0;";
-            
-            // 区块内部的 HTML 结构（清爽明了）
-            adminPanel.innerHTML = `
-                <div style="font-size: 13px; font-weight: bold; color: #c0392b; margin-bottom: 8px; border-bottom: 1px solid #fadbd8; padding-bottom: 4px;">🛠️ 管理员特权</div>
-                
-                <button id="btn-inline-invite" style="width: 100%; background: #e74c3c; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 10px; font-weight: bold;">🔑 1. 生成邀请码</button>
-                
-                <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 4px;">✅ 2. 为用户开通权限：</div>
-                <input type="text" id="input-inline-grant" placeholder="输入要授权的账号" style="width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 5px; box-sizing: border-box; font-size: 12px; outline: none;">
-                <button id="btn-inline-grant" style="width: 100%; background: #2980b9; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">一键开通</button>
-            `;
-
-            // 【核心】：将这个管理员卡片，直接塞进左侧边栏的第一个位置！
-            asideLeft.insertBefore(adminPanel, asideLeft.firstChild);
-
-            // 绑定生成邀请码功能
-            document.getElementById("btn-inline-invite").onclick = () => {
-                fetch(top_level_path + '/admin/api/generate_invite_code', { method: 'POST' })
-                .then(r => r.json())
-                .then(data => {
-                    if(data.success) prompt("✅ 邀请码生成成功！请复制下方代码发给朋友：", data.code);
-                    else alert("生成失败！");
-                }).catch(err => alert("网络错误：" + err));
-            };
-
-            // 绑定开通权限功能
-            document.getElementById("btn-inline-grant").onclick = () => {
-                const uid = document.getElementById("input-inline-grant").value.trim();
-                if (!uid) return alert("⚠️ 请先在输入框填写你要授权的用户名！");
-                
-                const grantBtn = document.getElementById("btn-inline-grant");
-                grantBtn.innerText = "处理中...";
-                
-                fetch(top_level_path + '/admin/api/user/' + uid, { method: 'GET' })
-                .then(r => {
-                    if (!r.ok) throw new Error("❌ 找不到该用户，请检查名字是否拼写正确");
-                    return r.json();
-                })
-                .then(user_attr => {
-                    user_attr.contact_any = 1; 
-                    return fetch(top_level_path + '/admin/api/user/' + uid, { 
-                        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(user_attr)
-                    });
-                })
-                .then(r => r.json())
-                .then(data => {
-                    alert("🎉 太棒了！成功为用户【" + uid + "】开通了交友和建群的权限！");
-                    document.getElementById("input-inline-grant").value = "";
-                })
-                .catch(err => alert(err.message))
-                .finally(() => grantBtn.innerText = "一键开通");
-            };
-
-        } else if (typeof logged_admin !== 'undefined' && logged_admin === false) {
-            // 退出登录时，自动移除这个内嵌卡片
-            const panel = document.getElementById("inline-admin-panel");
-            if (panel) panel.remove();
+document.addEventListener("DOMContentLoaded", function() {
+// 管理员：生成邀请码按钮点击事件
+    const adminInviteBtn = document.getElementById("admin-invite-btn");
+    if (adminInviteBtn) {
+        adminInviteBtn.addEventListener("click", function() {
+            fetch(top_level_path + '/admin/api/generate_invite_code', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if(data.success) {
+                    prompt("✅ 邀请码生成成功！请复制下方代码发送给新用户：", data.code);
+                } else {
+                    alert("生成失败！请确保您是管理员。");
+                }
+            }).catch(err => alert("网络错误：" + err));
+        });
+    }
+    // 【新增】权限判断：如果没有 contact_any 权限，直接隐藏加好友按钮
+    if (typeof logged_user !== 'undefined' && logged_user && !logged_user.contact_any) {
+        const addFriendBtn = document.getElementById("add-friend-btn");
+        if (addFriendBtn) {
+            addFriendBtn.style.display = "none";
         }
-    }, 1000);
-</script>
+    }
+    // 1. 注册账号功能
+    const registerBtn = document.getElementById("register-btn");
+    if (registerBtn) {
+        registerBtn.addEventListener("click", function() {
+            // 获取用户在输入框里填写的账号密码
+            const accountInput = document.getElementById("login-input-account").value.trim();
+            const passwordInput = document.getElementById("login-input-password").value.trim();
+            
+            if (!accountInput || !passwordInput) {
+                alert("请先在输入框填写你要注册的【账号】和【密码】！");
+                return;
+            }
+            
+            const inviteCode = prompt("请输入管理员提供的【邀请码】：");
+            if (!inviteCode) return;
+            
+            // 对密码进行加密后发送给后端
+            hash_password(passwordInput).then(password_hash => {
+                fetch(top_level_path + '/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        account: accountInput, 
+                        password_hash: password_hash, 
+                        invite_code: inviteCode 
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || (data.success ? "注册成功，请直接点击登录" : "注册失败"));
+                    if(data.success) {
+                        // 注册成功，可以保留账号框，方便用户直接点登录
+                        document.getElementById("login-input-password").value = "";
+                    }
+                })
+                .catch(err => alert("网络错误：" + err));
+            });
+        });
+    }
 
+    // 2. 添加好友功能
+    const addFriendBtn = document.getElementById("add-friend-btn");
+    if (addFriendBtn) {
+        addFriendBtn.addEventListener("click", function() {
+            let targetName = prompt("请输入你要添加的好友用户名：");
+            if (!targetName) return;
+            
+            fetch(top_level_path + '/chat/api/add_friend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_uid: targetName })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message || "请求完成");
+                if (data.success) location.reload(); // 刷新页面即可在左侧看到新联系人
+            })
+            .catch(err => alert("请求失败：" + err));
+        });
+    }
+
+    // 3. 创建群聊功能
+    const createGroupBtn = document.getElementById("create-group-btn");
+    if (createGroupBtn) {
+        createGroupBtn.addEventListener("click", function() {
+            let groupName = prompt("请输入新群组的名称（只能包含字母、数字或中文）：");
+            if (!groupName) return;
+            
+            fetch(top_level_path + '/chat/api/create_group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gid: groupName })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message || "请求完成");
+                if (data.success) location.reload(); // 刷新页面即可在左侧看到新群聊
+            })
+            .catch(err => alert("请求失败：" + err));
+        });
+    }
+});
+// 4. 邀请好友进群功能
+    const inviteGroupBtn = document.getElementById("invite-group-btn");
+    if (inviteGroupBtn) {
+        inviteGroupBtn.addEventListener("click", function() {
+            let groupName = prompt("请输入要拉人的【群组名称】：");
+            if (!groupName) return;
+            
+            let targetName = prompt(`请输入要邀请进群 [${groupName}] 的【好友用户名】：`);
+            if (!targetName) return;
+            
+            fetch(top_level_path + '/chat/api/invite_to_group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gid: groupName, target_uid: targetName })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message || "请求完成");
+                if (data.success) location.reload(); // 刷新页面使新成员生效
+            })
+            .catch(err => alert("请求失败：" + err));
+        });
+    }
+</script>
 </body>
 
 </html>
