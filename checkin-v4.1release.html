@@ -24886,32 +24886,38 @@ if (textarea) {
 
 <div id="chat-toast-container"></div>
 <script>
-    // 每隔 1 秒检测一次管理员登录状态，确保无论多卡都能刷出按钮
-    const checkAdminTimer = setInterval(() => {
+    setInterval(() => {
         if (typeof logged_admin !== 'undefined' && logged_admin === true) {
             
-            // 如果按钮已经存在，就不重复添加
-            if (document.getElementById("btn-custom-admin-tools")) return;
+            // 如果图层已经存在，就不重复创建
+            if (document.getElementById("checkin-admin-super-layer")) return;
 
-            // 1. 创建悬浮按钮（挂载到最顶层 document.documentElement）
-            const adminToolsBtn = document.createElement("button");
-            adminToolsBtn.id = "btn-custom-admin-tools";
-            adminToolsBtn.innerHTML = "🛠️ 管理员工具箱";
-            adminToolsBtn.style.cssText = "position: fixed; bottom: 30px; right: 30px; z-index: 2147483646; background: #e74c3c; color: white; border: none; padding: 15px 25px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 16px; transition: transform 0.2s;";
-            adminToolsBtn.onmouseover = () => adminToolsBtn.style.transform = "scale(1.05)";
-            adminToolsBtn.onmouseout = () => adminToolsBtn.style.transform = "scale(1)";
-            document.documentElement.appendChild(adminToolsBtn); // 🔥 强行挂载到网页根节点
+            // 1. 创建一个绝对独立的“超级图层”
+            const superLayer = document.createElement("div");
+            superLayer.id = "checkin-admin-super-layer";
+            // 魔法核心：all: initial 阻断原网页一切样式污染；pointer-events: none 让全屏图层不影响你点后面的网页
+            superLayer.style.cssText = "all: initial; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2147483647; pointer-events: none; display: block; font-family: sans-serif;";
+            document.body.appendChild(superLayer);
 
-            // 2. 创建全屏遮罩层 (使用最稳健的 Flexbox 居中大法)
+            // 2. 创建右下角的悬浮按钮
+            const btn = document.createElement("button");
+            btn.innerHTML = "🛠️ 管理员工具箱";
+            // pointer-events: auto 让按钮恢复可以点击的状态
+            btn.style.cssText = "position: absolute; bottom: 30px; right: 30px; background: #e74c3c; color: #fff; border: none; padding: 15px 25px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 16px; pointer-events: auto; transition: transform 0.2s;";
+            btn.onmouseover = () => btn.style.transform = "scale(1.05)";
+            btn.onmouseout = () => btn.style.transform = "scale(1)";
+            superLayer.appendChild(btn);
+
+            // 3. 创建全屏遮罩层（使用最原始的 absolute + flex 强行居中）
             const overlay = document.createElement("div");
-            overlay.id = "custom-admin-overlay";
-            overlay.style.cssText = "display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 2147483647; justify-content: center; align-items: center; backdrop-filter: blur(5px); margin: 0; padding: 0; box-sizing: border-box;";
+            overlay.style.cssText = "display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); pointer-events: auto; align-items: center; justify-content: center; backdrop-filter: blur(5px);";
+            superLayer.appendChild(overlay);
 
-            // 3. 创建弹窗白框
-            const modalBox = document.createElement("div");
-            modalBox.style.cssText = "background: white; padding: 30px; border-radius: 12px; width: 400px; max-width: 90vw; box-shadow: 0 10px 50px rgba(0,0,0,0.5); box-sizing: border-box; text-align: left;";
-            modalBox.innerHTML = `
-                <h2 style="margin: 0 0 20px 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; text-align: center;">🛠️ 管理员快捷指令</h2>
+            // 4. 创建纯白色的弹窗本体
+            const modal = document.createElement("div");
+            modal.style.cssText = "background: #fff; padding: 30px; border-radius: 12px; width: 400px; max-width: 90%; box-shadow: 0 10px 50px rgba(0,0,0,0.5); box-sizing: border-box; text-align: left; color: #333;";
+            modal.innerHTML = `
+                <h2 style="margin: 0 0 20px 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; text-align: center; font-size: 20px;">🛠️ 管理员快捷指令</h2>
                 
                 <div style="margin-bottom: 25px;">
                     <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #666;">1. 邀请新用户</h3>
@@ -24926,34 +24932,30 @@ if (textarea) {
 
                 <button id="btn-close-admin-modal" style="width: 100%; background: #95a5a6; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 15px; margin-top: 10px;">关闭窗口</button>
             `;
+            overlay.appendChild(modal);
 
-            overlay.appendChild(modalBox);
-            document.documentElement.appendChild(overlay); // 🔥 强行挂载到网页根节点
-
-            // 绑定弹窗的开关事件 (点击遮罩层背景也能关闭)
-            adminToolsBtn.addEventListener("click", () => overlay.style.display = "flex");
-            document.getElementById("btn-close-admin-modal").addEventListener("click", () => overlay.style.display = "none");
-            overlay.addEventListener("click", (e) => { if(e.target === overlay) overlay.style.display = "none"; });
+            // --- 下面是交互事件绑定 ---
+            btn.onclick = () => overlay.style.display = "flex";
+            document.getElementById("btn-close-admin-modal").onclick = () => overlay.style.display = "none";
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.style.display = "none"; };
 
             // 核心功能一：生成邀请码
-            document.getElementById("btn-quick-invite").addEventListener("click", () => {
+            document.getElementById("btn-quick-invite").onclick = () => {
                 fetch(top_level_path + '/admin/api/generate_invite_code', { method: 'POST' })
                 .then(r => r.json())
                 .then(data => {
-                    if(data.success) {
-                        prompt("✅ 邀请码生成成功！请复制下方代码发给朋友：", data.code);
-                    } else {
-                        alert("生成失败！");
-                    }
+                    if(data.success) prompt("✅ 邀请码生成成功！请复制下方代码发给朋友：", data.code);
+                    else alert("生成失败！");
                 }).catch(err => alert("网络错误：" + err));
-            });
+            };
 
             // 核心功能二：一键开通权限
-            document.getElementById("btn-quick-grant").addEventListener("click", () => {
+            document.getElementById("btn-quick-grant").onclick = () => {
                 const uid = document.getElementById("input-grant-uid").value.trim();
                 if (!uid) return alert("⚠️ 请先在输入框填写你要授权的用户名！");
                 
-                document.getElementById("btn-quick-grant").innerText = "处理中...";
+                const grantBtn = document.getElementById("btn-quick-grant");
+                grantBtn.innerText = "处理中...";
                 
                 fetch(top_level_path + '/admin/api/user/' + uid, { method: 'GET' })
                 .then(r => {
@@ -24963,9 +24965,7 @@ if (textarea) {
                 .then(user_attr => {
                     user_attr.contact_any = 1; 
                     return fetch(top_level_path + '/admin/api/user/' + uid, { 
-                        method: 'PUT', 
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(user_attr)
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(user_attr)
                     });
                 })
                 .then(r => r.json())
@@ -24974,17 +24974,13 @@ if (textarea) {
                     document.getElementById("input-grant-uid").value = "";
                 })
                 .catch(err => alert(err.message))
-                .finally(() => {
-                    document.getElementById("btn-quick-grant").innerText = "✅ 一键开通权限";
-                });
-            });
+                .finally(() => grantBtn.innerText = "✅ 一键开通权限");
+            };
 
         } else if (typeof logged_admin !== 'undefined' && logged_admin === false) {
-            // 如果退出管理员，自动清理掉按钮和遮罩层
-            const btn = document.getElementById("btn-custom-admin-tools");
-            const ovl = document.getElementById("custom-admin-overlay");
-            if(btn) btn.remove();
-            if(ovl) ovl.remove();
+            // 退出登录时，销毁整个超级图层
+            const layer = document.getElementById("checkin-admin-super-layer");
+            if (layer) layer.remove();
         }
     }, 1000);
 </script>
