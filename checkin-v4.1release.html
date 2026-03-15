@@ -7182,6 +7182,70 @@
         <div class="aside-left-wrap">
             <aside class="aside-left tiny-scrollbar">
                 <nav>
+                <div style="margin: 10px; padding: 12px; background: #fdf2f2; border: 1px solid #e74c3c; border-radius: 6px;">
+                    <div style="font-size: 13px; font-weight: bold; color: #c0392b; margin-bottom: 8px;">🛠️ 管理员特权</div>
+                    
+                    <button id="btn-static-invite" style="width: 100%; background: #e74c3c; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 12px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🔑 1. 生成邀请码</button>
+                    
+                    <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 4px;">✅ 2. 为用户开通权限：</div>
+                    <input type="text" id="input-static-grant" placeholder="输入要授权的账号" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 6px; box-sizing: border-box; font-size: 12px; outline: none;">
+                    <button id="btn-static-grant" style="width: 100%; background: #2980b9; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">一键开通</button>
+                </div>
+                ```
+*(粘贴完后，下面紧接着就是原代码里的 `<nav>` 标签了)*
+
+#### 第二步：在底部加入纯净的点击事件
+
+这次我们在底部写的 JavaScript **绝不生成任何可见元素**，只负责绑定上面那两个按钮的点击网络请求。
+
+滑动到文件的**最底部**（在 `</body>` 的上方），随便找个 `<script> ... </script>` 块，把下面这段代码加进去：
+
+```javascript
+// --- 管理员特权按钮功能逻辑 ---
+document.addEventListener("DOMContentLoaded", function() {
+    // 1. 生成邀请码
+    const btnInvite = document.getElementById("btn-static-invite");
+    if (btnInvite) {
+        btnInvite.addEventListener("click", () => {
+            fetch(top_level_path + '/admin/api/generate_invite_code', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if(data.success) prompt("✅ 邀请码生成成功！请复制下方代码发给朋友：", data.code);
+                else alert("生成失败！请确保你登录了管理员账号。");
+            }).catch(err => alert("网络错误：" + err));
+        });
+    }
+
+    // 2. 一键开通权限
+    const btnGrant = document.getElementById("btn-static-grant");
+    if (btnGrant) {
+        btnGrant.addEventListener("click", () => {
+            const uid = document.getElementById("input-static-grant").value.trim();
+            if (!uid) return alert("⚠️ 请先在输入框填写你要授权的用户名！");
+
+            btnGrant.innerText = "处理中...";
+
+            fetch(top_level_path + '/admin/api/user/' + uid, { method: 'GET' })
+            .then(r => {
+                if (!r.ok) throw new Error("❌ 找不到该用户，请检查名字是否拼写正确");
+                return r.json();
+            })
+            .then(user_attr => {
+                user_attr.contact_any = 1; 
+                return fetch(top_level_path + '/admin/api/user/' + uid, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(user_attr)
+                });
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert("🎉 太棒了！成功为用户【" + uid + "】开通了交友和建群的权限！");
+                document.getElementById("input-static-grant").value = "";
+            })
+            .catch(err => alert(err.message))
+            .finally(() => btnGrant.innerText = "一键开通");
+        });
+    }
+});
                     <ol class="nav-buttons">
                     </ol>
                 </nav>
