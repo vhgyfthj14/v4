@@ -25169,6 +25169,54 @@ document.addEventListener("DOMContentLoaded", function() {
             .finally(() => btnAdminGrant.innerText = "一键开通");
         });
     }
+    // 只有在用户成功登录后，才显示改名按钮
+        if (typeof logged_user !== 'undefined' && logged_user) {
+            
+            // 找到左侧边栏
+            const asideLeft = document.querySelector('.aside-left');
+            
+            if (asideLeft && !document.getElementById("btn-rename-myself")) {
+                const renameBtn = document.createElement("button");
+                renameBtn.id = "btn-rename-myself";
+                // 设计一个紫色的专属按钮
+                renameBtn.style.cssText = "margin: 10px; width: calc(100% - 20px); background: #8e44ad; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0; transition: background 0.2s;";
+                renameBtn.onmouseover = () => renameBtn.style.background = "#9b59b6";
+                renameBtn.onmouseout = () => renameBtn.style.background = "#8e44ad";
+                renameBtn.innerText = "🏷️ 修改我的聊天名称";
+                
+                // 强制将改名按钮插入到左侧边栏的最上方！
+                asideLeft.insertBefore(renameBtn, asideLeft.firstChild);
+
+                // 绑定点击事件
+                renameBtn.addEventListener("click", () => {
+                    let newName = prompt(`⚠️ 严重警告：修改此名称后，您的【登录账号】将同步更改！\n下次登录时，必须使用修改后的新名称登录！\n\n您当前的名称是【${logged_user.uid}】\n请输入您想要修改的新名称：`);
+                    // 如果没填，或者跟旧名字一样，就直接取消
+                    if (!newName || newName === logged_user.uid) return;
+
+                    renameBtn.innerText = "修改中...";
+                    fetch(top_level_path + '/chat/api/rename_me', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ new_uid: newName })
+                    })
+                    .then(async r => {
+                        const raw = await r.text();
+                        try { return JSON.parse(raw); } 
+                        catch(e) { throw new Error("服务器返回异常"); }
+                    })
+                    .then(data => {
+                        alert(data.message || (data.success ? "修改成功！" : "修改失败！"));
+                        if (data.success) {
+                            // 改名成功后强制刷新网页，让整个系统立刻显示新名字
+                            location.reload();
+                        }
+                    })
+                    .catch(err => alert("网络错误：" + err.message))
+                    .finally(() => renameBtn.innerText = "🏷️ 修改我的聊天名称");
+                });
+            }
+        }
+    }, 500);
 });
 </script>
 
