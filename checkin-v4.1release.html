@@ -25080,46 +25080,6 @@ document.addEventListener("DOMContentLoaded", function() {
             document.body.classList.remove("has-social-privilege");
         }
     }, 500);
-            // --------------------------------------
-        // B. 注入“修改我的聊天名称”紫色按钮
-        // --------------------------------------
-        if (typeof logged_user !== 'undefined' && logged_user) {
-            const asideLeft = document.querySelector('#dashboard-chat .aside-left');
-            if (asideLeft && !document.getElementById("btn-rename-myself")) {
-                const renameBtn = document.createElement("button");
-                renameBtn.id = "btn-rename-myself";
-                renameBtn.style.cssText = "margin: 10px; width: calc(100% - 20px); background: #8e44ad; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0; transition: background 0.2s;";
-                renameBtn.onmouseover = () => renameBtn.style.background = "#9b59b6";
-                renameBtn.onmouseout = () => renameBtn.style.background = "#8e44ad";
-                renameBtn.innerText = "🏷️ 修改我的聊天名称";
-                
-                asideLeft.insertBefore(renameBtn, asideLeft.firstChild);
-
-                renameBtn.addEventListener("click", () => {
-                    let newName = prompt(`⚠️ 严重警告：修改此名称后，您的【登录账号】将同步更改！\n下次登录时，必须使用修改后的新名称登录！\n\n您当前的名称是【${logged_user.uid}】\n请输入您想要修改的新名称：`);
-                    if (!newName || newName === logged_user.uid) return;
-
-                    renameBtn.innerText = "修改中...";
-                    fetch(top_level_path + '/chat/api/rename_me', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ new_uid: newName })
-                    })
-                    .then(async r => {
-                        const raw = await r.text();
-                        try { return JSON.parse(raw); } 
-                        catch(e) { throw new Error("服务器返回异常"); }
-                    })
-                    .then(data => {
-                        alert(data.message || (data.success ? "修改成功！" : "修改失败！"));
-                        if (data.success) location.reload();
-                    })
-                    .catch(err => alert("网络错误：" + err.message))
-                    .finally(() => renameBtn.innerText = "🏷️ 修改我的聊天名称");
-                });
-            }
-        }
-
     // ==================================================
     // 3. 聊天页面：加好友、建群、邀请 按钮点击事件
     // ==================================================
@@ -25166,7 +25126,52 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         });
     }
+        // --------------------------------------
+        // B. 注入“修改我的聊天名称”紫色按钮 (智能视觉侦测版)
+        // --------------------------------------
+        const chatDashboard = document.getElementById('dashboard-chat');
+        // 【核心修复】：只要聊天界面露出来了（说明已经成功登录），就立刻显示按钮！彻底无视变量延迟！
+        if (chatDashboard && window.getComputedStyle(chatDashboard).display !== 'none') {
+            const asideLeft = chatDashboard.querySelector('.aside-left');
+            
+            if (asideLeft && !document.getElementById("btn-rename-myself")) {
+                const renameBtn = document.createElement("button");
+                renameBtn.id = "btn-rename-myself";
+                renameBtn.style.cssText = "margin: 10px; width: calc(100% - 20px); background: #8e44ad; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0; transition: background 0.2s;";
+                renameBtn.onmouseover = () => renameBtn.style.background = "#9b59b6";
+                renameBtn.onmouseout = () => renameBtn.style.background = "#8e44ad";
+                renameBtn.innerText = "🏷️ 修改我的聊天名称";
+                
+                asideLeft.insertBefore(renameBtn, asideLeft.firstChild);
 
+                renameBtn.addEventListener("click", () => {
+                    // 安全获取当前名称（兼容刚登录时变量未刷新的状态）
+                    let currentName = (typeof logged_user !== 'undefined' && logged_user && logged_user.uid) ? logged_user.uid : "您的账号";
+                    
+                    let newName = prompt(`⚠️ 严重警告：修改此名称后，您的【登录账号】将同步更改！\n下次登录时，必须使用修改后的新名称登录！\n\n当前名称是【${currentName}】\n请输入您想要修改的新名称：`);
+                    
+                    if (!newName || newName === currentName) return;
+
+                    renameBtn.innerText = "修改中...";
+                    fetch(top_level_path + '/chat/api/rename_me', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ new_uid: newName })
+                    })
+                    .then(async r => {
+                        const raw = await r.text();
+                        try { return JSON.parse(raw); } 
+                        catch(e) { throw new Error("服务器返回异常"); }
+                    })
+                    .then(data => {
+                        alert(data.message || (data.success ? "修改成功！" : "修改失败！"));
+                        if (data.success) location.reload(); // 成功后强制刷新
+                    })
+                    .catch(err => alert("网络错误：" + err.message))
+                    .finally(() => renameBtn.innerText = "🏷️ 修改我的聊天名称");
+                });
+            }
+        }
     // ==================================================
     // 4. 管理员面板：生成邀请码 & 赋权逻辑
     // ==================================================
